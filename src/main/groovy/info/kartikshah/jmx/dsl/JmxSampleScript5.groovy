@@ -1,6 +1,8 @@
 package info.kartikshah.jmx.dsl
 
 import info.kartikshah.jmx.dsl.engine.CollectConfigDelegate
+import info.kartikshah.jmx.dsl.engine.DataPipeline
+import info.kartikshah.jmx.dsl.engine.RRDDataPipeline
 
 /**
  * Created by IntelliJ IDEA.
@@ -15,6 +17,7 @@ import info.kartikshah.jmx.dsl.engine.CollectConfigDelegate
 //CollectDataDelegate.mode='spec'
 
 CollectConfigDelegate.root = new File('config')
+DataPipeline.entry.next = new RRDDataPipeline()
 
 // Collect data from GlassFish
 
@@ -46,7 +49,13 @@ jmx {
           category='ClassLoading'
           labels = ['Loaded classes', 'Unloaded classes']
           attributes = {m -> [m.LoadedClassesCount, m.UnloadedClassesCount]}
-          resetOnRead = [true, true]
+          frequency = 10
+          config = ['rrd': {rrdDef ->
+            rrdDef.step = 10
+            rrdDef.addDatasource "Loaded_classes", "COUNTER", 10, 0, Double.NaN
+            rrdDef.addDatasource "Unloaded_classes", "COUNTER", 10, 0, Double.NaN
+            rrdDef.addArchive "AVERAGE", 0.5, 10, 720  // 2 hours of archive
+          }]
           start()
         }
       }
@@ -55,6 +64,12 @@ jmx {
           category='JVMCompilation'
           labels = ['Total compilation time']
           attributes = {m -> [m.TotalCompilationTime]}
+          frequency = 10
+          config = ['rrd': {rrdDef ->
+            rrdDef.step = 10
+            rrdDef.addDatasource "Compilation_time", "COUNTER", 10, 0, Double.NaN
+            rrdDef.addArchive "AVERAGE", 0.5, 10, 720  // 2 hours of archive
+          }]
           start()
         }
       }
@@ -62,11 +77,20 @@ jmx {
         collectData {
           category='JVMGarbageCollector'
           labels = ['Collection count', 'Collection time', 'Last GC start time', 'Last GC duration']
-          attributes = {m -> [m.CollectionCount, m.CollectionTime, m.LastGCInfo.startTime, m.LastGCInfo.duration]}
+          attributes = {m -> [m.CollectionCount, m.CollectionTime, m.LastGcInfo.startTime, m.LastGcInfo.duration]}
+          frequency = 10
+          config = ['rrd': {rrdDef ->
+            rrdDef.step = 10
+            rrdDef.addDatasource "GC_collection_count", "COUNTER", 10, 0, Double.NaN
+            rrdDef.addDatasource "GC_collection_time", "COUNTER", 10, 0, Double.NaN
+            rrdDef.addDatasource "GC_last_start_time", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "GC_last_duration", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addArchive "AVERAGE", 0.5, 10, 720  // 2 hours of archive
+          }]
           start()
         }
       }
-      findAll "type=Memory" {
+      findAllEndsWith "type=Memory" {
         collectData {
           category='JVMMemory'
           labels = ['Heap memory committed', 'Heap memory max', 'Heap memory used',
@@ -77,14 +101,82 @@ jmx {
                   m.NonHeapMemoryUsage.committed, m.NonHeapMemoryUsage.max, m.NonHeapMemoryUsage.used,
                   m.ObjectPendingFinalizationCount
           ]}
+          frequency = 10
+          config = ['rrd': {rrdDef ->
+            rrdDef.step = 10
+            rrdDef.addDatasource "Heap_memory_committed", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Heap_memory_max", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Heap_memory_used", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Non_heap_memory_committed", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Non_heap_memory_max", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Non_heap_memory_used", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Objects_pending_finalization", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addArchive "AVERAGE", 0.5, 10, 720  // 2 hours of archive
+          }]
           start()
         }
       }
-      findAll "type=MemoryPool" {
+      findAll "type=MemoryPool,name=Code Cache" {
         collectData {
-          category='JVMMemoryPool'
-          labels = ['Name', 'Type', 'Memory committed', 'Memory max', 'Memory used']
-          attributes = {m -> [m.Name, m.Type, m.Usage.committed, m.Usage.max, m.Usage.used]}
+          category='JVMMemoryPool_CodeCache'
+          labels = ['Memory committed', 'Memory max', 'Memory used']
+          attributes = {m -> [m.Usage.committed, m.Usage.max, m.Usage.used]}
+          frequency = 10
+          config = ['rrd': {rrdDef ->
+            rrdDef.step = 10
+            rrdDef.addDatasource "Memory_committed", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Memory_max", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Memory_used", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addArchive "AVERAGE", 0.5, 10, 720  // 2 hours of archive
+          }]
+          start()
+        }
+      }
+      findAll "type=MemoryPool,name=PS Eden Space" {
+        collectData {
+          category='JVMMemoryPool_EdenSpace'
+          labels = ['Memory committed', 'Memory max', 'Memory used']
+          attributes = {m -> [m.Usage.committed, m.Usage.max, m.Usage.used]}
+          frequency = 10
+          config = ['rrd': {rrdDef ->
+            rrdDef.step = 10
+            rrdDef.addDatasource "Memory_committed", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Memory_max", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Memory_used", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addArchive "AVERAGE", 0.5, 10, 720  // 2 hours of archive
+          }]
+          start()
+        }
+      }
+      findAll "type=MemoryPool,name=PS Old Gen" {
+        collectData {
+          category='JVMMemoryPool_OldGen'
+          labels = ['Memory committed', 'Memory max', 'Memory used']
+          attributes = {m -> [m.Usage.committed, m.Usage.max, m.Usage.used]}
+          frequency = 10
+          config = ['rrd': {rrdDef ->
+            rrdDef.step = 10
+            rrdDef.addDatasource "Memory_committed", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Memory_max", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Memory_used", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addArchive "AVERAGE", 0.5, 10, 720  // 2 hours of archive
+          }]
+          start()
+        }
+      }
+      findAll "type=MemoryPool,name=PS Perm Gen" {
+        collectData {
+          category='JVMMemoryPool_PermGen'
+          labels = ['Memory committed', 'Memory max', 'Memory used']
+          attributes = {m -> [m.Usage.committed, m.Usage.max, m.Usage.used]}
+          frequency = 10
+          config = ['rrd': {rrdDef ->
+            rrdDef.step = 10
+            rrdDef.addDatasource "Memory_committed", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Memory_max", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Memory_used", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addArchive "AVERAGE", 0.5, 10, 720  // 2 hours of archive
+          }]
           start()
         }
       }
@@ -97,6 +189,16 @@ jmx {
           attributes = {m -> [m.CommittedVirtualMemorySize, m.FreePhysicalMemorySize, m.FreeSwapSpaceSize,
                   m.OpenFileDescriptorCount, m.SystemLoadAverage
           ]}
+          frequency = 10
+          config = ['rrd': {rrdDef ->
+            rrdDef.step = 10
+            rrdDef.addDatasource "Virtual_memory_committed", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Physical_memory_free", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Swap_free", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "Open_file_descriptors", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addDatasource "System_load", "ABSOLUTE", 10, 0, 100
+            rrdDef.addArchive "AVERAGE", 0.5, 10, 720  // 2 hours of archive
+          }]
           start()
         }
       }
@@ -140,6 +242,12 @@ jmx {
           labels = ["Heap size"
           ]
           attributes = {m -> [m.HeapSize_Current]}
+          frequency = 10
+          config = ['rrd': {rrdDef ->
+            rrdDef.step = 10
+            rrdDef.addDatasource "Heap_size", "ABSOLUTE", 10, 0, Double.NaN
+            rrdDef.addArchive "AVERAGE", 0.5, 10, 720  // 2 hours of archive
+          }]
           start()
         }
       }

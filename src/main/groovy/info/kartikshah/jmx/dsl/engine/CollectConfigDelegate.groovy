@@ -10,35 +10,43 @@ package info.kartikshah.jmx.dsl.engine
 
 class CollectConfigDelegate {
   static def mode
-  //static Timer timer = new Timer()
+  static def root = new File('.')
 
   def modules
 
   def category
   def attributes
   def labels
-  def resetOnRead
 
-  CollectDataDelegate(modules){
+  CollectConfigDelegate(modules){
     this.modules = modules
   }
 
   def start(){
     if (mode == 'spec')
       printSpecs()
-    //else
-    // collectData periodically
+    else
+     collectConfig()
   }
 
-  def collectData(){
+  def collectConfig(){
+    root.mkdirs()
+    def configFile = new File(root, category + '.config')
+    if (configFile.exists()) configFile.delete()
+    configFile.createNewFile()
     modules.each{ m ->
       def dsCall = attributes.call(m)
-      newDataset.addValue dsCall[0], 0, dsCall[1]
+      for (def i=0; i<labels.size(); i++) {
+        def label = labels[i]
+        def value = dsCall[i]
+        println "$label = $value"
+        configFile << "$label = $value\n"
+      }
     }
   }
 
   def printSpecs(){
-    println category
+    println "[Configuration] $category"
     for (label in labels) {
       println '\t' + label
     }

@@ -9,14 +9,15 @@ package info.kartikshah.jmx.dsl.engine
  */
 class CollectDataDelegate {
   static def mode
-  //static Timer timer = new Timer()
-  
+  static Timer timer = new Timer()
+
   def modules
 
   def category
   def attributes
   def labels
-  def resetOnRead
+  def config
+  def frequency = 1
 
   CollectDataDelegate(modules){
     this.modules = modules
@@ -25,14 +26,23 @@ class CollectDataDelegate {
   def start(){
     if (mode == 'spec')
       printSpecs()
-    //else
-    // collectData periodically  
+    else {
+      DataPipeline.entry.config(category, labels, config)
+      // collect data periodically
+      def task = new TimerTask() {
+           void run() {
+             collectData()
+           }
+      }
+      timer.scheduleAtFixedRate task, frequency * 1000, frequency * 1000
+    }
   }
 
   def collectData(){
+    println 'Collecting data'
     modules.each{ m ->
-      def dsCall = attributes.call(m)
-      newDataset.addValue dsCall[0], 0, dsCall[1]
+      def values = attributes.call(m)
+      DataPipeline.entry.processData category, labels, values
     }
   }
 

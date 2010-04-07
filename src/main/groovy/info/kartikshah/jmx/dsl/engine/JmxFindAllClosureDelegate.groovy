@@ -1,7 +1,5 @@
 package info.kartikshah.jmx.dsl.engine
 
-import org.jfree.data.category.DefaultCategoryDataset
-
 /**
  * Created by IntelliJ IDEA.
  * User: Kartik.Shah
@@ -16,16 +14,22 @@ class JmxFindAllClosureDelegate {
     this.modules = modules
   }
 
+  def methodMissing(String name, args) {
+   if (args.length != 1)
+     throw new MissingMethodException(name, this.class, args)
+   return [name, args[0]]
+  }
+  
   void listAttributes(){
     modules.each { m ->
-      println m.name()
-      println m.listAttributeNames()
+      println "Object " + m.name()
+      println "Attributes " + m.listAttributeNames()
     }
   }
   void listOperations(){
     modules.each { m ->
-      println m.name()
-      println m.listOperationNames()
+      println "Object " + m.name()
+      println "Operations " + m.listOperationNames()
     }
   }
 
@@ -34,4 +38,23 @@ class JmxFindAllClosureDelegate {
     cl.resolveStrategy = Closure.DELEGATE_FIRST
     cl()
   }
+
+  void collectData(Closure cl){
+    cl.delegate = new CollectDataDelegate(modules)
+    cl.resolveStrategy = Closure.DELEGATE_FIRST
+    cl()
+  }
+
+  void collectConfig(Closure cl){
+    cl.delegate = new CollectConfigDelegate(modules)
+    cl.resolveStrategy = Closure.DELEGATE_FIRST
+    cl()
+  }
+
+  void configure(Closure cl){
+    cl.delegate = new ConfigureDelegate(modules)
+    cl.resolveStrategy = Closure.DELEGATE_FIRST
+    cl.delegate.apply(cl)
+  }
+
 }

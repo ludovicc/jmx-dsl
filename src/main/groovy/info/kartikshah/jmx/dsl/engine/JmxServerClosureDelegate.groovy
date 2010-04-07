@@ -1,6 +1,10 @@
 package info.kartikshah.jmx.dsl.engine
 
+import javax.management.remote.JMXConnector
+import javax.management.remote.JMXConnectorFactory
+import javax.management.remote.JMXServiceURL as JmxUrl
 import javax.management.ObjectName
+import javax.naming.Context
 
 /**
  * Created by IntelliJ IDEA.
@@ -10,14 +14,29 @@ import javax.management.ObjectName
  * To change this template use File | Settings | File Templates.
  */
 class JmxServerClosureDelegate {
-  def server
+  def serverUrl
+  def env
+  @Lazy
+  def server = {
+    env[Context.SECURITY_PRINCIPAL] = this.username
+    env[Context.SECURITY_CREDENTIALS] = this.password
+    env[JMXConnector.CREDENTIALS] = [this.username, this.password] as java.lang.String[]
+    JMXConnectorFactory.connect(new JmxUrl(serverUrl),env).MBeanServerConnection
+  }()
+  def name
 
-  JmxServerClosureDelegate(server){
-    this.server = server
+  def username
+  def password
+  
+  JmxServerClosureDelegate(serverUrl, env){
+    this.serverUrl = serverUrl
+    this.env = env.clone()
   }
 
   def methodMissing(String name, args) {
-   return [name, args[0]]
+    if (args.length != 1)
+       throw new MissingMethodException(name, this.class, args)
+    return [name, args[0]]
   }
 
   void query(param){

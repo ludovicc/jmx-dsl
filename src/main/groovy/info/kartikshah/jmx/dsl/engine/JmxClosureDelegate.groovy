@@ -1,8 +1,6 @@
 package info.kartikshah.jmx.dsl.engine
 
 import javax.management.remote.JMXConnectorFactory
-import javax.management.remote.JMXServiceURL as JmxUrl
-import javax.naming.Context
 
 /**
  * Created by IntelliJ IDEA.
@@ -15,10 +13,10 @@ class JmxClosureDelegate {
 
   def initialContextFactory
   def protocolProvider
-  def username
-  def password
   
   def methodMissing(String name, args) {
+    if (args.length != 1)
+      throw new MissingMethodException(name, this.class, args)
     return [name, args[0]]
   }
 
@@ -27,10 +25,7 @@ class JmxClosureDelegate {
     def env = [:]
     env["java.naming.factory.initial"] = this.initialContextFactory
     env[JMXConnectorFactory.PROTOCOL_PROVIDER_PACKAGES] = this.protocolProvider
-    env[Context.SECURITY_PRINCIPAL] = this.username
-    env[Context.SECURITY_CREDENTIALS] = this.password
-    def server = JMXConnectorFactory.connect(new JmxUrl(serverUrl),env).MBeanServerConnection
-    cl.delegate = new JmxServerClosureDelegate(server)
+    cl.delegate = new JmxServerClosureDelegate(serverUrl, env)
     cl.resolveStrategy = Closure.DELEGATE_FIRST
     cl()
   }

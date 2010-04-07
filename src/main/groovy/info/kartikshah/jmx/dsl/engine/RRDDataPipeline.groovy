@@ -1,5 +1,8 @@
 package info.kartikshah.jmx.dsl.engine
 
+import org.jrobin.core.RrdDb
+import org.jrobin.core.RrdDef
+
 /**
  * Created by IntelliJ IDEA.
  * User: lclaude
@@ -8,25 +11,38 @@ package info.kartikshah.jmx.dsl.engine
  * To change this template use File | Settings | File Templates.
  */
 
-// Add to ~/.groovy/grapeConfig.xml
-// <ibiblio name="openNMS" root="http://repo.opennms.org/maven2/" m2compatible="true"/>
-
-@Grab(group='org.jrobin', module='jrobin', version='1.5.9')
 class RRDDataPipeline extends DataPipeline {
 
-  def rddFiles = [:]
+  def rootDir = new File('logs')
+  def rrdDbs = [:]
 
   def config(def category, def labels, def configuration) {
-    def rddConfig = configuration['rdd']
-    if (rddConfig) {
-      
+    println "Configuring rdd for $category"
+    rootDir.mkdirs()
+    def rrdDef = new RrdDef(new File(rootDir, category + '.rrd').toString())
+    rrdDef.startTime = System.currentTimeMillis()
+
+    if (configuration) {
+      def rrdConfig = configuration['rrd']
+      rrdConfig?.call(rrdDef)
+      rrdDbs[category] = new RrdDb(rrdDef)
     }
     next?.config(category, labels, configuration)
   }
 
-  def processData(def category, def labels, def data) {
-    
-      next?.processData(category, labels, data)
+  def processData(def category, def labels, def values) {
+    println "Process data for $category"
+    def rrd = rrdDbs[category]
+    if (rrd) {
+      def sample = rrd.createSample()
+      sample.time = System.currentTimeMillis()
+      def i = 0
+      values.each {def value ->
+        sample.setValue(i++, value)
+      }
+      sample.update()
+    }
+    next?.processData(category, labels, values)
   }
 
 }

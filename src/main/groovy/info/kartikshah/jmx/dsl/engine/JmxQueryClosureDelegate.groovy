@@ -18,6 +18,8 @@ class JmxQueryClosureDelegate {
   }
 
   def methodMissing(String name, args) {
+    if (args.length != 1)
+      throw new MissingMethodException(name, this.class, args)
     return [name, args[0]]
   }
   
@@ -25,6 +27,18 @@ class JmxQueryClosureDelegate {
     def (filter, cl) = param
     def modules = allNames.findAll{ name ->
           name.contains(filter)
+      }.collect{ new GroovyMBean(server, it) }
+
+    cl.delegate = new JmxFindAllClosureDelegate(modules)
+    cl.resolveStrategy = Closure.DELEGATE_FIRST
+    cl()
+
+  }
+
+  void findAllEndsWith(param){
+    def (filter, cl) = param
+    def modules = allNames.findAll{ name ->
+          name.endsWith(filter)
       }.collect{ new GroovyMBean(server, it) }
 
     cl.delegate = new JmxFindAllClosureDelegate(modules)

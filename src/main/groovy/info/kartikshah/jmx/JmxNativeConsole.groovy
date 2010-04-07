@@ -18,6 +18,10 @@ import javax.swing.WindowConstants
  */
 class JmxNativeConsole
 {
+
+    def hi() {
+    }
+  
     static main(String[] args) {
 
       def serverUrl = 'service:jmx:rmi://localhost/jndi/rmi://localhost:1090/jmxconnector'
