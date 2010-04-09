@@ -57,4 +57,12 @@ class JmxFindAllClosureDelegate {
     cl.delegate.apply(cl)
   }
 
+  void forEach(Closure cl){
+    modules.each { module ->
+      cl.delegate = new ForEachBeanDelegate(module)
+      cl.resolveStrategy = Closure.DELEGATE_FIRST
+      cl(module)
+    }
+  }
+
 }

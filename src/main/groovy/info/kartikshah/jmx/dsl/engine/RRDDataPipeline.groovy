@@ -15,16 +15,28 @@ class RRDDataPipeline extends DataPipeline {
 
   def rootDir = new File('logs')
   def rrdDbs = [:]
+  def lastSampleTimes = [:]
+
+  def RRDDataPipeline() {
+    Runtime.addShutdownHook {
+      println "Closing RRD databases..."
+      close()
+    }
+  }
 
   def config(def category, def labels, def configuration) {
     println "Configuring rdd for $category"
     rootDir.mkdirs()
-    def rrdDef = new RrdDef(new File(rootDir, category + '.rrd').toString())
-    rrdDef.startTime = System.currentTimeMillis()
+    File rrdFile = new File(rootDir, category + '.rrd')
+    if (rrdFile.exists()) rrdFile.delete()
+    def rrdDef = new RrdDef(rrdFile.toString())
+    rrdDef.startTime = System.currentTimeMillis() / 1000
+    lastSampleTimes[category] = rrdDef.startTime
 
     if (configuration) {
       def rrdConfig = configuration['rrd']
       rrdConfig?.call(rrdDef)
+      rrdDef.validate()
       rrdDbs[category] = new RrdDb(rrdDef)
     }
     next?.config(category, labels, configuration)
@@ -32,12 +44,17 @@ class RRDDataPipeline extends DataPipeline {
 
   def processData(def category, def labels, def values) {
     println "Process data for $category"
-    def rrd = rrdDbs[category]
+    RrdDb rrd = rrdDbs[category]
     if (rrd) {
       def sample = rrd.createSample()
-      sample.time = System.currentTimeMillis()
+      def lastSampleTime = lastSampleTimes[category]
+      sample.time = System.currentTimeMillis() / 1000
+      if (sample.time <= lastSampleTime) sample.time = lastSampleTime + 1
+      lastSampleTimes[category] = sample.time
       def i = 0
       values.each {def value ->
+        def label = labels[i]
+        println "Received $label = $value"
         sample.setValue(i++, value)
       }
       sample.update()
@@ -45,4 +62,14 @@ class RRDDataPipeline extends DataPipeline {
     next?.processData(category, labels, values)
   }
 
+  def close() {
+    try {
+      rrdDbs.values().each {
+        it.close()
+      }
+    } catch (Exception e) {
+      e.printStackTrace()
+    }
+    println "Closed all RRD databases"
+  }
 }

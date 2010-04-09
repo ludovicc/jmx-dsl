@@ -39,7 +39,6 @@ class CollectDataDelegate {
   }
 
   def collectData(){
-    println 'Collecting data'
     modules.each{ m ->
       def values = attributes.call(m)
       DataPipeline.entry.processData category, labels, values

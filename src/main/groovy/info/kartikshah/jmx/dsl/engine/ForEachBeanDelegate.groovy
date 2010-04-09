@@ -8,6 +8,23 @@ package info.kartikshah.jmx.dsl.engine
  * To change this template use File | Settings | File Templates.
  */
 class ForEachBeanDelegate {
-  def ForEachBeanDelegate(java.lang.Object o) {
+
+  def module
+
+  def ForEachBeanDelegate(def module) {
+    this.module = module
   }
+
+  void collectData(Closure cl){
+    cl.delegate = new CollectDataDelegate([module])
+    cl.resolveStrategy = Closure.DELEGATE_FIRST
+    cl()
+  }
+
+  void collectConfig(Closure cl){
+    cl.delegate = new CollectConfigDelegate([module])
+    cl.resolveStrategy = Closure.DELEGATE_FIRST
+    cl()
+  }
+
 }
